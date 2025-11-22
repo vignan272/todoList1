@@ -1,0 +1,107 @@
+*,
+::before,
+::after {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+/* base text */
+label {
+  font-size: 20px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+/* IMPORTANT: no flex here anymore */
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background: transparent;
+}
+
+/* ========== COMMON BG FOR LOGIN + SIGNUP ========== */
+
+.auth-background {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("./pages/images/loptopLoginImg.jpeg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+/* mobile bg */
+@media (max-width: 768px) {
+  .auth-background {
+    background-image: url("./pages/images/mobileLoginImg.jpeg");
+  }
+}
+
+/* centers card on screen */
+.auth-wrapper {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+
+/* ========== SHARED CARD STYLES (Login + Signup) ========== */
+
+.container {
+  background-color: #fff;
+  padding: 32px 48px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 8px 8px 24px rgba(66, 66, 90, 1);
+  border-radius: 16px;
+}
+
+.container > h1 {
+  margin-bottom: 20px;
+}
+
+.container > form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.container div {
+  display: flex;
+  flex-direction: column;
+}
+
+.container input {
+  width: 100%;
+  font-size: 20px;
+  padding: 10px;
+  border: none;
+  outline: none;
+  border-bottom: 1px solid black;
+}
+
+.container input::placeholder {
+  font-size: 12px;
+  font-style: italic;
+}
+
+button {
+  background-color: purple;
+  border: none;
+  font-size: 20px;
+  color: white;
+  border-radius: 5px;
+  padding: 10px;
+  cursor: pointer;
+  margin: 10px 0;
+}
