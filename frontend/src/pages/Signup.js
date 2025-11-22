@@ -29,7 +29,7 @@ function Signup() {
       return handleError("name, email and password requried");
     }
     try {
-      const url = "http://localhost:8080/auth/signup";
+      const url = "https://todo-list-api-henna.vercel.app/auth/signup";
       const res = await fetch(url, {
         method: "POST",
         headers: {
