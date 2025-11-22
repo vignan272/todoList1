@@ -34,7 +34,7 @@ function Home() {
   const fetchTodolist = async () => {
     try {
       setLoading(true);
-      const url = "http://localhost:8080/api/todos";
+      const url = "https://todo-list-api-henna.vercel.app/api/todos";
       const res = await fetch(url, {
         headers: {
           Authorization: localStorage.getItem("token"),
@@ -64,7 +64,7 @@ function Home() {
     }
 
     try {
-      const res = await fetch("http://localhost:8080/api/todos", {
+      const res = await fetch("https://todo-list-api-henna.vercel.app/api/todos", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -88,7 +88,7 @@ function Home() {
 
   const handleToggleTodo = async (todo) => {
     try {
-      const res = await fetch(`http://localhost:8080/api/todos/${todo._id}`, {
+      const res = await fetch(`https://todo-list-api-henna.vercel.app/api/todos/${todo._id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -113,7 +113,7 @@ function Home() {
 
   const handleDeleteTodo = async (id) => {
     try {
-      const res = await fetch(`http://localhost:8080/api/todos/${id}`, {
+      const res = await fetch(`https://todo-list-api-henna.vercel.app/api/todos/${id}`, {
         method: "DELETE",
         headers: {
           Authorization: localStorage.getItem("token"),
@@ -136,7 +136,7 @@ function Home() {
     if (!window.confirm("Are you sure you want to clear all todos?")) return;
 
     try {
-      const res = await fetch("http://localhost:8080/api/todos", {
+      const res = await fetch("https://todo-list-api-henna.vercel.app/api/todos", {
         method: "DELETE",
         headers: {
           Authorization: localStorage.getItem("token"),
