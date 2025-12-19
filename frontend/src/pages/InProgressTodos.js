@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { handleError } from "../utils";
 import { ToastContainer } from "react-toastify";
@@ -9,21 +9,17 @@ function InProgressTodos() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-    fetchTodos();
-  }, []);
-
-  const fetchTodos = async () => {
+  const fetchTodos = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("https://todo-list-api-henna.vercel.app/api/todos", {
-        headers: { Authorization: localStorage.getItem("token") },
-      });
+      const res = await fetch(
+        "https://todo-list-api-henna.vercel.app/api/todos",
+        {
+          headers: {
+            Authorization: localStorage.getItem("token"),
+          },
+        }
+      );
 
       const result = await res.json();
       if (!res.ok) throw new Error(result.message);
@@ -34,7 +30,16 @@ function InProgressTodos() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    fetchTodos();
+  }, [navigate, fetchTodos]);
 
   return (
     <div className="background">
