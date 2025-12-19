@@ -99,7 +99,7 @@ function Home() {
 
   /* -------- FETCH TODOS -------- */
   useEffect(() => {
-    fetch("https://todo-list-api-henna.vercel.app/todos", {
+    fetch("https://todo-list-api-henna.vercel.app/auth/login", {
       headers: { Authorization: localStorage.getItem("token") },
     })
       .then((r) => r.json())
@@ -115,7 +115,7 @@ function Home() {
     e.preventDefault();
     if (!task.trim()) return handleError("Task is required");
 
-    const res = await fetch("https://todo-list-api-henna.vercel.app/todos", {
+    const res = await fetch("https://todo-list-api-henna.vercel.app/api/todos", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
