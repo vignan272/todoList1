@@ -21,7 +21,7 @@ function CompletedTodos() {
   const fetchTodos = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:8080/api/todos", {
+      const res = await fetch("https://todo-list-api-henna.vercel.app/api/todos/", {
         headers: { Authorization: localStorage.getItem("token") },
       });
 
