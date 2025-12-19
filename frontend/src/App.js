@@ -8,6 +8,7 @@ import InProgressTodos from "./pages/InProgressTodos";
 import HighPriorityTodos from "./pages/HighPriorityTodos";
 import { useState } from "react";
 import RefrshHandler from "./RefrshHandler";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -18,6 +19,7 @@ function App() {
 
   return (
     <div className="App">
+      <SpeedInsights />
       <RefrshHandler setIsAuthenticated={setIsAuthenticated} />
 
       <Routes>
