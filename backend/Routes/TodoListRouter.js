@@ -6,7 +6,7 @@ const router = express.Router();
 
 /**
  * POST /api/todos
- * Create todo for logged-in user
+ * Create todo for logged-in 
  */
 router.post("/", ensureAuthenticated, async (req, res) => {
   try {
