@@ -11,6 +11,19 @@ const TodoSchema = new Schema({
     type: Boolean,
     required: true,
   },
+  expiryAt: {
+    type: Date,
+    required: false, // allow todos without alarm
+  },
+  priority: {
+    type: String,
+    enum: ["Low", "Medium", "High"],
+    default: "Medium",
+  },
+  alarmEnabled: {
+    type: Boolean,
+    default: true,
+  },
   userId: {
     type: Schema.Types.ObjectId,
     ref: "users", // model name from Users.js
