@@ -115,7 +115,7 @@ function Home() {
     e.preventDefault();
     if (!task.trim()) return handleError("Task is required");
 
-    const res = await fetch("https://todo-list-api-henna.vercel.app/todos", {
+    const res = await fetch("https://todo-list-api-henna.vercel.app/api/todos", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -145,7 +145,7 @@ function Home() {
 
   /* -------- TOGGLE DONE -------- */
   const toggleTodo = async (todo) => {
-    const res = await fetch(`https://todo-list-api-henna.vercel.app/todos/${todo._id}`, {
+    const res = await fetch(`https://todo-list-api-henna.vercel.app/api/todos/${todo._id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -174,7 +174,7 @@ function Home() {
   const cancelEdit = () => setEditId(null);
 
   const saveEdit = async (todo) => {
-    const res = await fetch(`https://todo-list-api-henna.vercel.app/todos/${todo._id}`, {
+    const res = await fetch(`https://todo-list-api-henna.vercel.app/api/todos/${todo._id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -208,7 +208,7 @@ function Home() {
   const deleteTodo = async (id) => {
     if (!window.confirm("Delete this todo?")) return;
 
-    const res = await fetch(`https://todo-list-api-henna.vercel.app/todos/${id}`, {
+    const res = await fetch(`https://todo-list-api-henna.vercel.app/api/todos/${id}`, {
       method: "DELETE",
       headers: { Authorization: localStorage.getItem("token") },
     });
