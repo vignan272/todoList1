@@ -1,238 +1,365 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { handleError, handleSuccess } from "../utils";
+import React, { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
+import { handleError, handleSuccess } from "../utils";
 import "./Home.css";
 
-function Home() {
-  const [loggedInUser, setLoggedInUser] = useState("");
-  const [todos, setTodos] = useState([]);
-  const [newTodo, setNewTodo] = useState("");
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+/* ================== HELPERS ================== */
 
-  // Get logged in user name
+// Local time: now + 5 minutes
+const getLocalNowPlus5Min = () => {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() + 5);
+
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+};
+
+// Countdown formatter
+const formatRemainingTime = (ms) => {
+  if (!ms || ms <= 0) return "Expired";
+
+  const total = Math.floor(ms / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+
+  return `${h}h ${m}m ${s}s`;
+};
+
+/* ================== COMPONENT ================== */
+
+function Home() {
+  const [todos, setTodos] = useState([]);
+  const [task, setTask] = useState("");
+  const [expiryAt, setExpiryAt] = useState(getLocalNowPlus5Min());
+  const [priority, setPriority] = useState("Medium");
+  const [autoExpiry, setAutoExpiry] = useState(true);
+  const [now, setNow] = useState(Date.now());
+
+  // ===== EDIT STATES =====
+  const [editId, setEditId] = useState(null);
+  const [editTask, setEditTask] = useState("");
+  const [editPriority, setEditPriority] = useState("Medium");
+  const [editExpiryAt, setEditExpiryAt] = useState("");
+
+  const navigate = useNavigate();
+  const alarmMap = useRef({});
+
+  /* -------- AUTH -------- */
   useEffect(() => {
-    const user = localStorage.getItem("loggedInUser");
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (!localStorage.getItem("token")) {
       navigate("/login");
-      return;
     }
-    setLoggedInUser(user || "");
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("loggedInUser");
-    handleSuccess("User logged out");
-    setTimeout(() => {
-      navigate("/login");
-    }, 1000);
-  };
-
-  const fetchTodolist = async () => {
-    try {
-      setLoading(true);
-      const url = "https://todo-list-api-henna.vercel.app/api/todos";
-      const res = await fetch(url, {
-        headers: {
-          Authorization: localStorage.getItem("token"),
-        },
-      });
-
-      const result = await res.json();
-      if (!res.ok) {
-        throw new Error(result.message || "Failed to fetch todos");
-      }
-      setTodos(result || []);
-    } catch (err) {
-      handleError(err.message || "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  /* -------- LIVE CLOCK -------- */
   useEffect(() => {
-    fetchTodolist();
+    const i = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(i);
   }, []);
 
-  const handleAddTodo = async (e) => {
+  /* -------- AUTO DEFAULT TIME -------- */
+  useEffect(() => {
+    if (!autoExpiry) return;
+
+    const i = setInterval(() => {
+      setExpiryAt(getLocalNowPlus5Min());
+    }, 60000);
+
+    return () => clearInterval(i);
+  }, [autoExpiry]);
+
+  /* -------- NOTIFICATION PERMISSION -------- */
+  useEffect(() => {
+    if ("Notification" in window) {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  /* -------- ALARM -------- */
+  const scheduleAlarm = (todo) => {
+    if (!todo.expiryAt || alarmMap.current[todo._id]) return;
+    if (Notification.permission !== "granted") return;
+
+    const delay = new Date(todo.expiryAt).getTime() - Date.now();
+    if (delay <= 0) return;
+
+    alarmMap.current[todo._id] = setTimeout(() => {
+      new Notification("⏰ Todo Reminder", {
+        body: `${todo.name} (${todo.priority})`,
+      });
+    }, delay);
+  };
+
+  /* -------- FETCH TODOS -------- */
+  useEffect(() => {
+    fetch("http://localhost:8080/api/todos", {
+      headers: { Authorization: localStorage.getItem("token") },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        setTodos(data || []);
+        (data || []).forEach(scheduleAlarm);
+      })
+      .catch(() => handleError("Failed to load todos"));
+  }, []);
+
+  /* -------- ADD TODO -------- */
+  const addTodo = async (e) => {
     e.preventDefault();
-    if (!newTodo.trim()) {
-      return handleError("Todo name is required");
-    }
+    if (!task.trim()) return handleError("Task is required");
 
-    try {
-      const res = await fetch("https://todo-list-api-henna.vercel.app/api/todos", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: localStorage.getItem("token"),
-        },
-        body: JSON.stringify({ name: newTodo.trim(), isDone: false }),
-      });
+    const res = await fetch("http://localhost:8080/api/todos", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: localStorage.getItem("token"),
+      },
+      body: JSON.stringify({
+        name: task,
+        isDone: false,
+        expiryAt,
+        priority,
+      }),
+    });
 
-      const result = await res.json();
-      if (!res.ok) {
-        throw new Error(result.message || "Failed to add todo");
-      }
+    const result = await res.json();
+    if (!res.ok) return handleError(result.message);
 
-      setTodos((prev) => [result, ...prev]);
-      setNewTodo("");
-      handleSuccess("Todo added");
-    } catch (err) {
-      handleError(err.message || "Something went wrong");
-    }
+    setTodos((p) => [result, ...p]);
+    scheduleAlarm(result);
+
+    setTask("");
+    setPriority("Medium");
+    setExpiryAt(getLocalNowPlus5Min());
+    setAutoExpiry(true);
+
+    handleSuccess("Todo added");
   };
 
-  const handleToggleTodo = async (todo) => {
-    try {
-      const res = await fetch(`https://todo-list-api-henna.vercel.app/api/todos/${todo._id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: localStorage.getItem("token"),
-        },
-        body: JSON.stringify({
-          name: todo.name,
-          isDone: !todo.isDone,
-        }),
-      });
+  /* -------- TOGGLE DONE -------- */
+  const toggleTodo = async (todo) => {
+    const res = await fetch(`http://localhost:8080/api/todos/${todo._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: localStorage.getItem("token"),
+      },
+      body: JSON.stringify({
+        name: todo.name,
+        isDone: !todo.isDone,
+      }),
+    });
 
-      const result = await res.json();
-      if (!res.ok) {
-        throw new Error(result.message || "Failed to update todo");
-      }
+    const result = await res.json();
+    if (!res.ok) return handleError(result.message);
 
-      setTodos((prev) => prev.map((t) => (t._id === todo._id ? result : t)));
-    } catch (err) {
-      handleError(err.message || "Something went wrong");
-    }
+    setTodos((p) => p.map((t) => (t._id === todo._id ? result : t)));
   };
 
-  const handleDeleteTodo = async (id) => {
-    try {
-      const res = await fetch(`https://todo-list-api-henna.vercel.app/api/todos/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: localStorage.getItem("token"),
-        },
-      });
-
-      const result = await res.json();
-      if (!res.ok) {
-        throw new Error(result.message || "Failed to delete todo");
-      }
-
-      setTodos((prev) => prev.filter((t) => t._id !== id));
-      handleSuccess("Todo deleted");
-    } catch (err) {
-      handleError(err.message || "Something went wrong");
-    }
+  /* -------- EDIT -------- */
+  const startEdit = (todo) => {
+    setEditId(todo._id);
+    setEditTask(todo.name);
+    setEditPriority(todo.priority);
+    setEditExpiryAt(todo.expiryAt?.slice(0, 16));
   };
 
-  const handleClearAll = async () => {
-    if (!window.confirm("Are you sure you want to clear all todos?")) return;
+  const cancelEdit = () => setEditId(null);
 
-    try {
-      const res = await fetch("https://todo-list-api-henna.vercel.app/api/todos", {
-        method: "DELETE",
-        headers: {
-          Authorization: localStorage.getItem("token"),
-        },
-      });
+  const saveEdit = async (todo) => {
+    const res = await fetch(`http://localhost:8080/api/todos/${todo._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: localStorage.getItem("token"),
+      },
+      body: JSON.stringify({
+        name: editTask,
+        priority: editPriority,
+        expiryAt: editExpiryAt,
+        isDone: todo.isDone,
+      }),
+    });
 
-      const result = await res.json();
-      if (!res.ok) {
-        throw new Error(result.message || "Failed to clear todos");
-      }
+    const result = await res.json();
+    if (!res.ok) return handleError(result.message);
 
-      setTodos([]);
-      handleSuccess("All todos cleared");
-    } catch (err) {
-      handleError(err.message || "Something went wrong");
+    if (alarmMap.current[todo._id]) {
+      clearTimeout(alarmMap.current[todo._id]);
+      delete alarmMap.current[todo._id];
     }
+
+    scheduleAlarm(result);
+
+    setTodos((p) => p.map((t) => (t._id === todo._id ? result : t)));
+
+    setEditId(null);
+    handleSuccess("Todo updated");
   };
+
+  /* -------- DELETE -------- */
+  const deleteTodo = async (id) => {
+    if (!window.confirm("Delete this todo?")) return;
+
+    const res = await fetch(`http://localhost:8080/api/todos/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: localStorage.getItem("token") },
+    });
+
+    const result = await res.json();
+    if (!res.ok) return handleError(result.message);
+
+    if (alarmMap.current[id]) {
+      clearTimeout(alarmMap.current[id]);
+      delete alarmMap.current[id];
+    }
+
+    setTodos((p) => p.filter((t) => t._id !== id));
+    handleSuccess("Todo deleted");
+  };
+
+  /* -------- LOGOUT -------- */
+  const logout = () => {
+    localStorage.clear();
+    navigate("/login");
+  };
+
+  /* ================== UI ================== */
 
   return (
     <div className="background">
+      {/* NAV BAR */}
+      <nav className="top-navbar">
+        <div className="nav-links">
+          <Link to="/home" className="nav-item active">
+            Home
+          </Link>
+          <Link to="/todos/in-progress" className="nav-item">
+            In Progress
+          </Link>
+          <Link to="/todos/completed" className="nav-item">
+            Completed
+          </Link>
+          <Link to="/todos/high-priority" className="nav-item high">
+            High Priority
+          </Link>
+        </div>
+        <button className="logout-btn" onClick={logout}>
+          Logout
+        </button>
+      </nav>
+
+      {/* CONTENT */}
       <div className="home-wrapper">
         <div className="home-card">
-          <header className="home-header">
-            <div>
-              <p className="welcome-text">Welcome back to Fun House,</p>
-              <h1 className="user-name">{loggedInUser || "User"}</h1>
-            </div>
-            <button className="logout-btn" onClick={handleLogout}>
-              Logout
-            </button>
-          </header>
+          {/* ADD FORM */}
+          <form onSubmit={addTodo} className="todo-form">
+            <input
+              className="todo-input"
+              placeholder="Todo name"
+              value={task}
+              onChange={(e) => setTask(e.target.value)}
+            />
 
-          <section className="todo-input-section">
-            <form onSubmit={handleAddTodo} className="todo-form">
-              <input
-                type="text"
-                placeholder="What do you want to do today?"
-                value={newTodo}
-                onChange={(e) => setNewTodo(e.target.value)}
-                className="todo-input"
-              />
-              <button type="submit" className="add-btn">
-                + Add
-              </button>
-            </form>
-          </section>
+            <input
+              type="datetime-local"
+              className="todo-input"
+              value={expiryAt}
+              onChange={(e) => {
+                setExpiryAt(e.target.value);
+                setAutoExpiry(false);
+              }}
+            />
 
-          <section className="todo-list-section">
-            <div className="todo-list-header">
-              <h2>Your Todos</h2>
-              {todos.length > 0 && (
-                <button className="clear-btn" onClick={handleClearAll}>
-                  Clear All
-                </button>
-              )}
-            </div>
+            <select
+              className="todo-input"
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+            >
+              <option>Low</option>
+              <option>Medium</option>
+              <option>High</option>
+            </select>
 
-            {loading ? (
-              <p className="info-text">Loading your tasks...</p>
-            ) : todos.length === 0 ? (
-              <p className="info-text empty">
-                No todos yet. Add your first task ✨
-              </p>
-            ) : (
-              <ul className="todo-list">
-                {todos.map((todo) => (
-                  <li key={todo._id} className="todo-item">
-                    <label className="todo-left">
+            <button className="add-btn">+ Add</button>
+          </form>
+
+          {/* TODO LIST */}
+          <ul className="todo-list">
+            {todos.map((todo) => {
+              const remaining = new Date(todo.expiryAt).getTime() - now;
+
+              return (
+                <li key={todo._id} className="todo-item">
+                  {editId === todo._id ? (
+                    <>
+                      <input
+                        className="todo-input"
+                        value={editTask}
+                        onChange={(e) => setEditTask(e.target.value)}
+                      />
+
+                      <input
+                        type="datetime-local"
+                        className="todo-input"
+                        value={editExpiryAt}
+                        onChange={(e) => setEditExpiryAt(e.target.value)}
+                      />
+
+                      <select
+                        className="todo-input"
+                        value={editPriority}
+                        onChange={(e) => setEditPriority(e.target.value)}
+                      >
+                        <option>Low</option>
+                        <option>Medium</option>
+                        <option>High</option>
+                      </select>
+
+                      <button onClick={() => saveEdit(todo)}>💾</button>
+                      <button onClick={cancelEdit}>❌</button>
+                    </>
+                  ) : (
+                    <>
                       <input
                         type="checkbox"
                         checked={todo.isDone}
-                        onChange={() => handleToggleTodo(todo)}
+                        onChange={() => toggleTodo(todo)}
                       />
-                      <span
-                        className={
-                          todo.isDone ? "todo-text todo-done" : "todo-text"
-                        }
-                      >
-                        {todo.name}
-                      </span>
-                    </label>
-                    <button
-                      className="delete-btn"
-                      onClick={() => handleDeleteTodo(todo._id)}
-                    >
-                      ✕
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
 
-        <ToastContainer />
+                      <span className={todo.isDone ? "todo-done" : ""}>
+                        {todo.name} ({todo.priority})
+                      </span>
+
+                      <span className="todo-timer">
+                        ⏳ {formatRemainingTime(remaining)}
+                      </span>
+
+                      <button onClick={() => startEdit(todo)}>✏️</button>
+
+                      <button
+                        className="delete-btn"
+                        onClick={() => deleteTodo(todo._id)}
+                      >
+                        🗑️
+                      </button>
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </div>
+
+      <ToastContainer />
     </div>
   );
 }
