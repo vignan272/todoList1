@@ -1,107 +1,168 @@
-*,
-::before,
-::after {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
+/* ================= RESET ================= */
 
-/* base text */
-label {
-  font-size: 20px;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 html,
 body,
 #root {
   height: 100%;
-  width: 100%;
 }
 
-/* IMPORTANT: no flex here anymore */
+/* ================= BACKGROUND ================= */
+
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  background: transparent;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+
+  background: radial-gradient(
+    circle at top,
+    rgba(56, 189, 248, 0.2),
+    #020617 55%
+  );
+
+  color: #e5e7eb;
 }
 
-/* ========== COMMON BG FOR LOGIN + SIGNUP ========== */
+/* ================= AUTH BACKGROUND ================= */
 
 .auth-background {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url("./pages/images/loptopLoginImg.jpeg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
-}
-
-/* mobile bg */
-@media (max-width: 768px) {
-  .auth-background {
-    background-image: url("./pages/images/mobileLoginImg.jpeg");
-  }
-}
-
-/* centers card on screen */
-.auth-wrapper {
   min-height: 100vh;
-  width: 100%;
   display: flex;
-  justify-content: center;
   align-items: center;
-  padding: 16px;
+  justify-content: center;
+  padding: 20px;
 }
 
-/* ========== SHARED CARD STYLES (Login + Signup) ========== */
+/* ================= AUTH WRAPPER ================= */
+
+.auth-wrapper {
+  width: 100%;
+  max-width: 420px;
+}
+
+/* ================= CARD ================= */
 
 .container {
-  background-color: #fff;
-  padding: 32px 48px;
-  width: 100%;
-  max-width: 400px;
-  box-shadow: 8px 8px 24px rgba(66, 66, 90, 1);
-  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+
+  border-radius: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 45px 90px rgba(0, 0, 0, 0.7);
+
+  padding: 38px 34px;
 }
 
-.container > h1 {
-  margin-bottom: 20px;
+/* ================= TITLE ================= */
+
+.container h1 {
+  text-align: center;
+  font-size: 1.9rem;
+  font-weight: 800;
+  margin-bottom: 26px;
+  letter-spacing: 0.4px;
 }
 
-.container > form {
+/* ================= FORM ================= */
+
+.container form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 18px;
 }
 
-.container div {
-  display: flex;
-  flex-direction: column;
+.container label {
+  font-size: 0.75rem;
+  opacity: 0.75;
+  margin-bottom: 4px;
 }
 
+/* Input */
 .container input {
   width: 100%;
-  font-size: 20px;
-  padding: 10px;
-  border: none;
+  background: rgba(30, 41, 59, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 14px;
+  padding: 14px 16px;
+
+  color: #e5e7eb;
+  font-size: 0.9rem;
   outline: none;
-  border-bottom: 1px solid black;
+
+  transition: border 0.2s ease, box-shadow 0.2s ease;
 }
 
 .container input::placeholder {
-  font-size: 12px;
-  font-style: italic;
+  color: #94a3b8;
 }
 
-button {
-  background-color: purple;
+.container input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.3);
+}
+
+/* ================= BUTTON ================= */
+
+.container button {
+  margin-top: 10px;
+
+  background: linear-gradient(135deg, #38bdf8, #0ea5e9);
   border: none;
-  font-size: 20px;
-  color: white;
-  border-radius: 5px;
-  padding: 10px;
+  color: #020617;
+
+  padding: 14px;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+
   cursor: pointer;
-  margin: 10px 0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.container button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.45);
+}
+
+/* ================= FOOTER TEXT ================= */
+
+.container span {
+  margin-top: 18px;
+  display: block;
+  text-align: center;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.container a {
+  color: #38bdf8;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.container a:hover {
+  text-decoration: underline;
+}
+
+/* ================= TOAST FIX ================= */
+
+.Toastify__toast {
+  border-radius: 12px;
+}
+
+/* ================= MOBILE ================= */
+
+@media (max-width: 480px) {
+  .container {
+    padding: 28px 24px;
+  }
+
+  .container h1 {
+    font-size: 1.65rem;
+  }
 }
