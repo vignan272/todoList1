@@ -10,7 +10,7 @@ const router = express.Router();
  */
 router.post("/", ensureAuthenticated, async (req, res) => {
   try {
-    const { name, isDone } = req.body;
+    const { name, isDone, expiryAt, priority, alarmEnabled } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: "name is required" });
@@ -19,6 +19,9 @@ router.post("/", ensureAuthenticated, async (req, res) => {
     const todo = await TodoModel.create({
       name,
       isDone: isDone ?? false,
+      expiryAt: expiryAt ?? null,
+      priority: priority ?? "Medium",
+      alarmEnabled: alarmEnabled ?? true,
       userId: req.user._id,
     });
 
@@ -35,7 +38,11 @@ router.post("/", ensureAuthenticated, async (req, res) => {
  */
 router.get("/", ensureAuthenticated, async (req, res) => {
   try {
-    const todos = await TodoModel.find({ userId: req.user._id });
+    const todos = await TodoModel.find({ userId: req.user._id }).sort({
+      expiryAt: 1,
+      priority: -1,
+    });
+
     return res.status(200).json(todos);
   } catch (err) {
     console.error("Get todos error:", err);
@@ -50,11 +57,17 @@ router.get("/", ensureAuthenticated, async (req, res) => {
 router.put("/:id", ensureAuthenticated, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, isDone } = req.body;
+    const { name, isDone, expiryAt, priority, alarmEnabled } = req.body;
 
     const updatedTodo = await TodoModel.findOneAndUpdate(
       { _id: id, userId: req.user._id },
-      { name, isDone },
+      {
+        ...(name !== undefined && { name }),
+        ...(isDone !== undefined && { isDone }),
+        ...(expiryAt !== undefined && { expiryAt }),
+        ...(priority !== undefined && { priority }),
+        ...(alarmEnabled !== undefined && { alarmEnabled }),
+      },
       { new: true, runValidators: true }
     );
 
