@@ -7,28 +7,28 @@ import "./Home.css";
 /* ================= HELPERS ================= */
 
 // datetime-local → timestamp (LOCAL time)
+// datetime-local → timestamp (LOCAL TIME, CORRECT)
 const toTimestamp = (datetimeLocal) => {
   if (!datetimeLocal) return null;
-  const [date, time] = datetimeLocal.split("T");
-  const [y, m, d] = date.split("-").map(Number);
-  const [h, min] = time.split(":").map(Number);
-  return Date.UTC(y, m - 1, d, h, min);
+  return new Date(datetimeLocal).getTime();
 };
 
+
 // timestamp → datetime-local (LOCAL time) ✅ FIX
+// timestamp → datetime-local (LOCAL TIME, CORRECT)
 const toLocalInputValue = (timestamp) => {
   if (!timestamp) return "";
-
   const d = new Date(timestamp);
 
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  const min = String(d.getUTCMinutes()).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
 
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
 };
+
 
 
 // Countdown formatter
