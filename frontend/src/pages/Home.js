@@ -6,7 +6,7 @@ import "./Home.css";
 
 /* ================== HELPERS ================== */
 
-// Local time: now + 5 minutes
+// Local time: now + 5 minutes (for datetime-local input)
 const getLocalNowPlus5Min = () => {
   const d = new Date();
   d.setMinutes(d.getMinutes() + 5);
@@ -18,6 +18,15 @@ const getLocalNowPlus5Min = () => {
   const min = String(d.getMinutes()).padStart(2, "0");
 
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+};
+
+// 🔥 FIX: datetime-local → timestamp (NO timezone issue)
+const toTimestamp = (datetimeLocal) => {
+  if (!datetimeLocal) return null;
+  const [date, time] = datetimeLocal.split("T");
+  const [y, m, d] = date.split("-").map(Number);
+  const [h, min] = time.split(":").map(Number);
+  return new Date(y, m - 1, d, h, min).getTime();
 };
 
 // Countdown formatter
@@ -53,9 +62,7 @@ function Home() {
 
   /* -------- AUTH -------- */
   useEffect(() => {
-    if (!localStorage.getItem("token")) {
-      navigate("/login");
-    }
+    if (!localStorage.getItem("token")) navigate("/login");
   }, [navigate]);
 
   /* -------- LIVE CLOCK -------- */
@@ -67,19 +74,15 @@ function Home() {
   /* -------- AUTO DEFAULT TIME -------- */
   useEffect(() => {
     if (!autoExpiry) return;
-
     const i = setInterval(() => {
       setExpiryAt(getLocalNowPlus5Min());
     }, 60000);
-
     return () => clearInterval(i);
   }, [autoExpiry]);
 
   /* -------- NOTIFICATION PERMISSION -------- */
   useEffect(() => {
-    if ("Notification" in window) {
-      Notification.requestPermission();
-    }
+    if ("Notification" in window) Notification.requestPermission();
   }, []);
 
   /* -------- ALARM -------- */
@@ -87,7 +90,7 @@ function Home() {
     if (!todo.expiryAt || alarmMap.current[todo._id]) return;
     if (Notification.permission !== "granted") return;
 
-    const delay = new Date(todo.expiryAt).getTime() - Date.now();
+    const delay = todo.expiryAt - Date.now();
     if (delay <= 0) return;
 
     alarmMap.current[todo._id] = setTimeout(() => {
@@ -124,7 +127,7 @@ function Home() {
       body: JSON.stringify({
         name: task,
         isDone: false,
-        expiryAt,
+        expiryAt: toTimestamp(expiryAt),
         priority,
       }),
     });
@@ -145,17 +148,22 @@ function Home() {
 
   /* -------- TOGGLE DONE -------- */
   const toggleTodo = async (todo) => {
-    const res = await fetch(`https://todo-list-api-henna.vercel.app/api/todos/${todo._id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: localStorage.getItem("token"),
-      },
-      body: JSON.stringify({
-        name: todo.name,
-        isDone: !todo.isDone,
-      }),
-    });
+    const res = await fetch(
+      `https://todo-list-api-henna.vercel.app/api/todos/${todo._id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: localStorage.getItem("token"),
+        },
+        body: JSON.stringify({
+          name: todo.name,
+          isDone: !todo.isDone,
+          expiryAt: todo.expiryAt,
+          priority: todo.priority,
+        }),
+      }
+    );
 
     const result = await res.json();
     if (!res.ok) return handleError(result.message);
@@ -168,25 +176,28 @@ function Home() {
     setEditId(todo._id);
     setEditTask(todo.name);
     setEditPriority(todo.priority);
-    setEditExpiryAt(todo.expiryAt?.slice(0, 16));
+    setEditExpiryAt(new Date(todo.expiryAt).toISOString().slice(0, 16));
   };
 
   const cancelEdit = () => setEditId(null);
 
   const saveEdit = async (todo) => {
-    const res = await fetch(`https://todo-list-api-henna.vercel.app/api/todos/${todo._id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: localStorage.getItem("token"),
-      },
-      body: JSON.stringify({
-        name: editTask,
-        priority: editPriority,
-        expiryAt: editExpiryAt,
-        isDone: todo.isDone,
-      }),
-    });
+    const res = await fetch(
+      `https://todo-list-api-henna.vercel.app/api/todos/${todo._id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: localStorage.getItem("token"),
+        },
+        body: JSON.stringify({
+          name: editTask,
+          priority: editPriority,
+          expiryAt: toTimestamp(editExpiryAt),
+          isDone: todo.isDone,
+        }),
+      }
+    );
 
     const result = await res.json();
     if (!res.ok) return handleError(result.message);
@@ -197,10 +208,9 @@ function Home() {
     }
 
     scheduleAlarm(result);
-
     setTodos((p) => p.map((t) => (t._id === todo._id ? result : t)));
-
     setEditId(null);
+
     handleSuccess("Todo updated");
   };
 
@@ -208,10 +218,13 @@ function Home() {
   const deleteTodo = async (id) => {
     if (!window.confirm("Delete this todo?")) return;
 
-    const res = await fetch(`https://todo-list-api-henna.vercel.app/api/todos/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: localStorage.getItem("token") },
-    });
+    const res = await fetch(
+      `https://todo-list-api-henna.vercel.app/api/todos/${id}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: localStorage.getItem("token") },
+      }
+    );
 
     const result = await res.json();
     if (!res.ok) return handleError(result.message);
@@ -235,31 +248,18 @@ function Home() {
 
   return (
     <div className="background">
-      {/* NAV BAR */}
       <nav className="top-navbar">
         <div className="nav-links">
-          <Link to="/home" className="nav-item active">
-            Home
-          </Link>
-          <Link to="/todos/in-progress" className="nav-item">
-            In Progress
-          </Link>
-          <Link to="/todos/completed" className="nav-item">
-            Completed
-          </Link>
-          <Link to="/todos/high-priority" className="nav-item high">
-            High Priority
-          </Link>
+          <Link to="/home" className="nav-item active">Home</Link>
+          <Link to="/todos/in-progress" className="nav-item">In Progress</Link>
+          <Link to="/todos/completed" className="nav-item">Completed</Link>
+          <Link to="/todos/high-priority" className="nav-item high">High Priority</Link>
         </div>
-        <button className="logout-btn" onClick={logout}>
-          Logout
-        </button>
+        <button className="logout-btn" onClick={logout}>Logout</button>
       </nav>
 
-      {/* CONTENT */}
       <div className="home-wrapper">
         <div className="home-card">
-          {/* ADD FORM */}
           <form onSubmit={addTodo} className="todo-form">
             <input
               className="todo-input"
@@ -291,10 +291,9 @@ function Home() {
             <button className="add-btn">+ Add</button>
           </form>
 
-          {/* TODO LIST */}
           <ul className="todo-list">
             {todos.map((todo) => {
-              const remaining = new Date(todo.expiryAt).getTime() - now;
+              const remaining = todo.expiryAt - now;
 
               return (
                 <li key={todo._id} className="todo-item">
@@ -343,7 +342,6 @@ function Home() {
                       </span>
 
                       <button onClick={() => startEdit(todo)}>✏️</button>
-
                       <button
                         className="delete-btn"
                         onClick={() => deleteTodo(todo._id)}
