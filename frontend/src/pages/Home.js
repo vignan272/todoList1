@@ -20,7 +20,7 @@ const getLocalNowPlus5Min = () => {
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
 };
 
-// 🔥 FIX: datetime-local → timestamp (NO timezone issue)
+// 🔥 Convert datetime-local → timestamp (ms)
 const toTimestamp = (datetimeLocal) => {
   if (!datetimeLocal) return null;
   const [date, time] = datetimeLocal.split("T");
@@ -51,7 +51,7 @@ function Home() {
   const [autoExpiry, setAutoExpiry] = useState(true);
   const [now, setNow] = useState(Date.now());
 
-  // ===== EDIT STATES =====
+  // Edit states
   const [editId, setEditId] = useState(null);
   const [editTask, setEditTask] = useState("");
   const [editPriority, setEditPriority] = useState("Medium");
@@ -103,7 +103,9 @@ function Home() {
   /* -------- FETCH TODOS -------- */
   useEffect(() => {
     fetch("https://todo-list-api-henna.vercel.app/api/todos", {
-      headers: { Authorization: localStorage.getItem("token") },
+      headers: {
+        Authorization: localStorage.getItem("token"),
+      },
     })
       .then((r) => r.json())
       .then((data) => {
@@ -127,7 +129,7 @@ function Home() {
       body: JSON.stringify({
         name: task,
         isDone: false,
-        expiryAt: toTimestamp(expiryAt),
+        expiryAt: expiryAt ? toTimestamp(expiryAt) : null,
         priority,
       }),
     });
@@ -176,7 +178,9 @@ function Home() {
     setEditId(todo._id);
     setEditTask(todo.name);
     setEditPriority(todo.priority);
-    setEditExpiryAt(new Date(todo.expiryAt).toISOString().slice(0, 16));
+    setEditExpiryAt(
+      todo.expiryAt ? new Date(todo.expiryAt).toISOString().slice(0, 16) : ""
+    );
   };
 
   const cancelEdit = () => setEditId(null);
@@ -193,7 +197,7 @@ function Home() {
         body: JSON.stringify({
           name: editTask,
           priority: editPriority,
-          expiryAt: toTimestamp(editExpiryAt),
+          expiryAt: editExpiryAt ? toTimestamp(editExpiryAt) : null,
           isDone: todo.isDone,
         }),
       }
@@ -222,7 +226,9 @@ function Home() {
       `https://todo-list-api-henna.vercel.app/api/todos/${id}`,
       {
         method: "DELETE",
-        headers: { Authorization: localStorage.getItem("token") },
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
       }
     );
 
@@ -293,7 +299,7 @@ function Home() {
 
           <ul className="todo-list">
             {todos.map((todo) => {
-              const remaining = todo.expiryAt - now;
+              const remaining = todo.expiryAt ? todo.expiryAt - now : null;
 
               return (
                 <li key={todo._id} className="todo-item">
@@ -338,7 +344,7 @@ function Home() {
                       </span>
 
                       <span className="todo-timer">
-                        ⏳ {formatRemainingTime(remaining)}
+                        ⏳ {remaining ? formatRemainingTime(remaining) : "No alarm"}
                       </span>
 
                       <button onClick={() => startEdit(todo)}>✏️</button>
