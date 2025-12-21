@@ -6,16 +6,13 @@ import "./Home.css";
 
 /* ================= HELPERS ================= */
 
-// datetime-local → timestamp (LOCAL time)
-// datetime-local → timestamp (LOCAL TIME, CORRECT)
+// ✅ datetime-local → timestamp (LOCAL TIME)
 const toTimestamp = (datetimeLocal) => {
   if (!datetimeLocal) return null;
   return new Date(datetimeLocal).getTime();
 };
 
-
-// timestamp → datetime-local (LOCAL time) ✅ FIX
-// timestamp → datetime-local (LOCAL TIME, CORRECT)
+// ✅ timestamp → datetime-local (LOCAL TIME)
 const toLocalInputValue = (timestamp) => {
   if (!timestamp) return "";
   const d = new Date(timestamp);
@@ -29,9 +26,6 @@ const toLocalInputValue = (timestamp) => {
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
 };
 
-
-
-// Countdown formatter
 const formatRemainingTime = (ms) => {
   if (!ms || ms <= 0) return "Expired";
   const total = Math.floor(ms / 1000);
@@ -50,7 +44,6 @@ function Home() {
   const [priority, setPriority] = useState("Medium");
   const [now, setNow] = useState(Date.now());
 
-  // Edit state
   const [editId, setEditId] = useState(null);
   const [editTask, setEditTask] = useState("");
   const [editPriority, setEditPriority] = useState("Medium");
@@ -61,9 +54,7 @@ function Home() {
 
   /* -------- AUTH -------- */
   useEffect(() => {
-    if (!localStorage.getItem("token")) {
-      navigate("/login");
-    }
+    if (!localStorage.getItem("token")) navigate("/login");
   }, [navigate]);
 
   /* -------- CLOCK -------- */
@@ -72,7 +63,7 @@ function Home() {
     return () => clearInterval(i);
   }, []);
 
-  /* -------- NOTIFICATION PERMISSION -------- */
+  /* -------- NOTIFICATIONS -------- */
   useEffect(() => {
     if ("Notification" in window) Notification.requestPermission();
   }, []);
@@ -82,8 +73,8 @@ function Home() {
     fetch("https://todo-list-api-henna.vercel.app/api/todos", {
       headers: { Authorization: localStorage.getItem("token") },
     })
-      .then((res) => res.json())
-      .then((data) => setTodos(data || []))
+      .then((r) => r.json())
+      .then((d) => setTodos(d || []))
       .catch(() => handleError("Failed to load todos"));
   }, []);
 
@@ -108,6 +99,8 @@ function Home() {
     e.preventDefault();
     if (!task.trim()) return handleError("Task is required");
 
+    const ts = expiryAt ? toTimestamp(expiryAt) : null;
+
     const res = await fetch("https://todo-list-api-henna.vercel.app/api/todos", {
       method: "POST",
       headers: {
@@ -117,7 +110,7 @@ function Home() {
       body: JSON.stringify({
         name: task,
         isDone: false,
-        expiryAt: expiryAt ? toTimestamp(expiryAt) : null,
+        expiryAt: ts,
         priority,
       }),
     });
@@ -165,10 +158,8 @@ function Home() {
     setEditId(todo._id);
     setEditTask(todo.name);
     setEditPriority(todo.priority);
-    setEditExpiryAt(toLocalInputValue(todo.expiryAt)); // ✅ FIX
+    setEditExpiryAt(toLocalInputValue(todo.expiryAt));
   };
-
-  const cancelEdit = () => setEditId(null);
 
   const saveEdit = async (todo) => {
     const res = await fetch(
@@ -277,7 +268,9 @@ function Home() {
 
           <ul className="todo-list">
             {todos.map((todo) => {
-              const remaining = todo.expiryAt ? todo.expiryAt - now : null;
+              const remaining = todo.expiryAt
+                ? todo.expiryAt - now
+                : null;
 
               return (
                 <li key={todo._id} className="todo-item">
@@ -307,7 +300,6 @@ function Home() {
                       </select>
 
                       <button onClick={() => saveEdit(todo)}>💾</button>
-                      <button onClick={cancelEdit}>❌</button>
                     </>
                   ) : (
                     <>
@@ -326,12 +318,7 @@ function Home() {
                       </span>
 
                       <button onClick={() => startEdit(todo)}>✏️</button>
-                      <button
-                        className="delete-btn"
-                        onClick={() => deleteTodo(todo._id)}
-                      >
-                        🗑️
-                      </button>
+                      <button onClick={() => deleteTodo(todo._id)}>🗑️</button>
                     </>
                   )}
                 </li>
