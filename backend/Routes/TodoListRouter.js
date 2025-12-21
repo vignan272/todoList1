@@ -6,19 +6,24 @@ const router = express.Router();
 
 /**
  * POST /api/todos
- * Create todo for logged-in 
+ * Create todo for logged-in user
  */
 router.post("/", ensureAuthenticated, async (req, res) => {
   try {
     const { name, isDone, expiryAt, priority, alarmEnabled } = req.body;
 
-    if (!name) {
+    if (!name || typeof name !== "string") {
       return res.status(400).json({ message: "name is required" });
+    }
+
+    // 🔒 Validate expiryAt (must be number or null)
+    if (expiryAt !== null && expiryAt !== undefined && typeof expiryAt !== "number") {
+      return res.status(400).json({ message: "expiryAt must be a timestamp (number)" });
     }
 
     const todo = await TodoModel.create({
       name,
-      isDone: isDone ?? false,
+      isDone: Boolean(isDone),
       expiryAt: expiryAt ?? null,
       priority: priority ?? "Medium",
       alarmEnabled: alarmEnabled ?? true,
@@ -38,10 +43,9 @@ router.post("/", ensureAuthenticated, async (req, res) => {
  */
 router.get("/", ensureAuthenticated, async (req, res) => {
   try {
-    const todos = await TodoModel.find({ userId: req.user._id }).sort({
-      expiryAt: 1,
-      priority: -1,
-    });
+    const todos = await TodoModel.find({ userId: req.user._id })
+      // null expiryAt goes last
+      .sort({ expiryAt: 1, priority: -1 });
 
     return res.status(200).json(todos);
   } catch (err) {
@@ -59,11 +63,16 @@ router.put("/:id", ensureAuthenticated, async (req, res) => {
     const { id } = req.params;
     const { name, isDone, expiryAt, priority, alarmEnabled } = req.body;
 
+    // 🔒 Validate expiryAt if present
+    if (expiryAt !== undefined && expiryAt !== null && typeof expiryAt !== "number") {
+      return res.status(400).json({ message: "expiryAt must be a timestamp (number)" });
+    }
+
     const updatedTodo = await TodoModel.findOneAndUpdate(
       { _id: id, userId: req.user._id },
       {
         ...(name !== undefined && { name }),
-        ...(isDone !== undefined && { isDone }),
+        ...(isDone !== undefined && { isDone: Boolean(isDone) }),
         ...(expiryAt !== undefined && { expiryAt }),
         ...(priority !== undefined && { priority }),
         ...(alarmEnabled !== undefined && { alarmEnabled }),
