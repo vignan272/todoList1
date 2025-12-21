@@ -12,7 +12,7 @@ const TodoSchema = new Schema({
     required: true,
   },
   expiryAt: {
-    type: Date,
+    type: Number,
     required: false, // allow todos without alarm
   },
   priority: {
