@@ -12,7 +12,7 @@ const toTimestamp = (datetimeLocal) => {
   const [date, time] = datetimeLocal.split("T");
   const [y, m, d] = date.split("-").map(Number);
   const [h, min] = time.split(":").map(Number);
-  return new Date(y, m - 1, d, h, min).getTime();
+  return Date.UTC(y, m - 1, d, h, min);
 };
 
 // timestamp → datetime-local (LOCAL time) ✅ FIX
