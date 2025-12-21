@@ -4,10 +4,23 @@ const TodoModel = require("../Models/TodoList");
 
 const router = express.Router();
 
-/**
- * POST /api/todos
- * Create todo for logged-in user
- */
+/* 🔧 Normalize expiryAt to timestamp */
+const normalizeExpiry = (expiryAt) => {
+  if (expiryAt === null || expiryAt === undefined) return null;
+
+  // already timestamp
+  if (typeof expiryAt === "number") return expiryAt;
+
+  // string datetime → timestamp
+  if (typeof expiryAt === "string") {
+    const ts = new Date(expiryAt).getTime();
+    return isNaN(ts) ? null : ts;
+  }
+
+  return null;
+};
+
+/* ================= CREATE TODO ================= */
 router.post("/", ensureAuthenticated, async (req, res) => {
   try {
     const { name, isDone, expiryAt, priority, alarmEnabled } = req.body;
@@ -16,15 +29,12 @@ router.post("/", ensureAuthenticated, async (req, res) => {
       return res.status(400).json({ message: "name is required" });
     }
 
-    // 🔒 Validate expiryAt (must be number or null)
-    if (expiryAt !== null && expiryAt !== undefined && typeof expiryAt !== "number") {
-      return res.status(400).json({ message: "expiryAt must be a timestamp (number)" });
-    }
+    const normalizedExpiry = normalizeExpiry(expiryAt);
 
     const todo = await TodoModel.create({
       name,
       isDone: Boolean(isDone),
-      expiryAt: expiryAt ?? null,
+      expiryAt: normalizedExpiry,
       priority: priority ?? "Medium",
       alarmEnabled: alarmEnabled ?? true,
       userId: req.user._id,
@@ -37,14 +47,10 @@ router.post("/", ensureAuthenticated, async (req, res) => {
   }
 });
 
-/**
- * GET /api/todos
- * Get all todos for logged-in user
- */
+/* ================= GET TODOS ================= */
 router.get("/", ensureAuthenticated, async (req, res) => {
   try {
     const todos = await TodoModel.find({ userId: req.user._id })
-      // null expiryAt goes last
       .sort({ expiryAt: 1, priority: -1 });
 
     return res.status(200).json(todos);
@@ -54,30 +60,24 @@ router.get("/", ensureAuthenticated, async (req, res) => {
   }
 });
 
-/**
- * PUT /api/todos/:id
- * Update todo by ID (only if it belongs to user)
- */
+/* ================= UPDATE TODO ================= */
 router.put("/:id", ensureAuthenticated, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, isDone, expiryAt, priority, alarmEnabled } = req.body;
 
-    // 🔒 Validate expiryAt if present
-    if (expiryAt !== undefined && expiryAt !== null && typeof expiryAt !== "number") {
-      return res.status(400).json({ message: "expiryAt must be a timestamp (number)" });
-    }
+    const normalizedExpiry = normalizeExpiry(expiryAt);
 
     const updatedTodo = await TodoModel.findOneAndUpdate(
       { _id: id, userId: req.user._id },
       {
         ...(name !== undefined && { name }),
         ...(isDone !== undefined && { isDone: Boolean(isDone) }),
-        ...(expiryAt !== undefined && { expiryAt }),
+        ...(expiryAt !== undefined && { expiryAt: normalizedExpiry }),
         ...(priority !== undefined && { priority }),
         ...(alarmEnabled !== undefined && { alarmEnabled }),
       },
-      { new: true, runValidators: true }
+      { new: true }
     );
 
     if (!updatedTodo) {
@@ -91,16 +91,11 @@ router.put("/:id", ensureAuthenticated, async (req, res) => {
   }
 });
 
-/**
- * DELETE /api/todos/:id
- * Delete single todo by ID (only user's)
- */
+/* ================= DELETE TODO ================= */
 router.delete("/:id", ensureAuthenticated, async (req, res) => {
   try {
-    const { id } = req.params;
-
     const deleted = await TodoModel.findOneAndDelete({
-      _id: id,
+      _id: req.params.id,
       userId: req.user._id,
     });
 
@@ -115,10 +110,7 @@ router.delete("/:id", ensureAuthenticated, async (req, res) => {
   }
 });
 
-/**
- * DELETE /api/todos
- * Delete ALL todos of logged-in user
- */
+/* ================= DELETE ALL ================= */
 router.delete("/", ensureAuthenticated, async (req, res) => {
   try {
     await TodoModel.deleteMany({ userId: req.user._id });
