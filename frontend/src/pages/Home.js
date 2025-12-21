@@ -4,12 +4,21 @@ import { ToastContainer } from "react-toastify";
 import { handleError, handleSuccess } from "../utils";
 import "./Home.css";
 
-/* ================== HELPERS ================== */
+/* ================= HELPERS ================= */
 
-// Local time: now + 5 minutes (for datetime-local input)
-const getLocalNowPlus5Min = () => {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() + 5);
+// datetime-local → timestamp (LOCAL time)
+const toTimestamp = (datetimeLocal) => {
+  if (!datetimeLocal) return null;
+  const [date, time] = datetimeLocal.split("T");
+  const [y, m, d] = date.split("-").map(Number);
+  const [h, min] = time.split(":").map(Number);
+  return new Date(y, m - 1, d, h, min).getTime();
+};
+
+// timestamp → datetime-local (LOCAL time) ✅ FIX
+const toLocalInputValue = (timestamp) => {
+  if (!timestamp) return "";
+  const d = new Date(timestamp);
 
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -20,38 +29,26 @@ const getLocalNowPlus5Min = () => {
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
 };
 
-// 🔥 Convert datetime-local → timestamp (ms)
-const toTimestamp = (datetimeLocal) => {
-  if (!datetimeLocal) return null;
-  const [date, time] = datetimeLocal.split("T");
-  const [y, m, d] = date.split("-").map(Number);
-  const [h, min] = time.split(":").map(Number);
-  return new Date(y, m - 1, d, h, min).getTime();
-};
-
 // Countdown formatter
 const formatRemainingTime = (ms) => {
   if (!ms || ms <= 0) return "Expired";
-
   const total = Math.floor(ms / 1000);
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
-
   return `${h}h ${m}m ${s}s`;
 };
 
-/* ================== COMPONENT ================== */
+/* ================= COMPONENT ================= */
 
 function Home() {
   const [todos, setTodos] = useState([]);
   const [task, setTask] = useState("");
-  const [expiryAt, setExpiryAt] = useState(getLocalNowPlus5Min());
+  const [expiryAt, setExpiryAt] = useState("");
   const [priority, setPriority] = useState("Medium");
-  const [autoExpiry, setAutoExpiry] = useState(true);
   const [now, setNow] = useState(Date.now());
 
-  // Edit states
+  // Edit state
   const [editId, setEditId] = useState(null);
   const [editTask, setEditTask] = useState("");
   const [editPriority, setEditPriority] = useState("Medium");
@@ -62,32 +59,36 @@ function Home() {
 
   /* -------- AUTH -------- */
   useEffect(() => {
-    if (!localStorage.getItem("token")) navigate("/login");
+    if (!localStorage.getItem("token")) {
+      navigate("/login");
+    }
   }, [navigate]);
 
-  /* -------- LIVE CLOCK -------- */
+  /* -------- CLOCK -------- */
   useEffect(() => {
     const i = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(i);
   }, []);
-
-  /* -------- AUTO DEFAULT TIME -------- */
-  useEffect(() => {
-    if (!autoExpiry) return;
-    const i = setInterval(() => {
-      setExpiryAt(getLocalNowPlus5Min());
-    }, 60000);
-    return () => clearInterval(i);
-  }, [autoExpiry]);
 
   /* -------- NOTIFICATION PERMISSION -------- */
   useEffect(() => {
     if ("Notification" in window) Notification.requestPermission();
   }, []);
 
+  /* -------- FETCH TODOS -------- */
+  useEffect(() => {
+    fetch("https://todo-list-api-henna.vercel.app/api/todos", {
+      headers: { Authorization: localStorage.getItem("token") },
+    })
+      .then((res) => res.json())
+      .then((data) => setTodos(data || []))
+      .catch(() => handleError("Failed to load todos"));
+  }, []);
+
   /* -------- ALARM -------- */
   const scheduleAlarm = (todo) => {
-    if (!todo.expiryAt || alarmMap.current[todo._id]) return;
+    if (!todo.expiryAt) return;
+    if (alarmMap.current[todo._id]) return;
     if (Notification.permission !== "granted") return;
 
     const delay = todo.expiryAt - Date.now();
@@ -99,21 +100,6 @@ function Home() {
       });
     }, delay);
   };
-
-  /* -------- FETCH TODOS -------- */
-  useEffect(() => {
-    fetch("https://todo-list-api-henna.vercel.app/api/todos", {
-      headers: {
-        Authorization: localStorage.getItem("token"),
-      },
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        setTodos(data || []);
-        (data || []).forEach(scheduleAlarm);
-      })
-      .catch(() => handleError("Failed to load todos"));
-  }, []);
 
   /* -------- ADD TODO -------- */
   const addTodo = async (e) => {
@@ -141,14 +127,13 @@ function Home() {
     scheduleAlarm(result);
 
     setTask("");
+    setExpiryAt("");
     setPriority("Medium");
-    setExpiryAt(getLocalNowPlus5Min());
-    setAutoExpiry(true);
 
     handleSuccess("Todo added");
   };
 
-  /* -------- TOGGLE DONE -------- */
+  /* -------- TOGGLE -------- */
   const toggleTodo = async (todo) => {
     const res = await fetch(
       `https://todo-list-api-henna.vercel.app/api/todos/${todo._id}`,
@@ -178,9 +163,7 @@ function Home() {
     setEditId(todo._id);
     setEditTask(todo.name);
     setEditPriority(todo.priority);
-    setEditExpiryAt(
-      todo.expiryAt ? new Date(todo.expiryAt).toISOString().slice(0, 16) : ""
-    );
+    setEditExpiryAt(toLocalInputValue(todo.expiryAt)); // ✅ FIX
   };
 
   const cancelEdit = () => setEditId(null);
@@ -226,19 +209,15 @@ function Home() {
       `https://todo-list-api-henna.vercel.app/api/todos/${id}`,
       {
         method: "DELETE",
-        headers: {
-          Authorization: localStorage.getItem("token"),
-        },
+        headers: { Authorization: localStorage.getItem("token") },
       }
     );
 
     const result = await res.json();
     if (!res.ok) return handleError(result.message);
 
-    if (alarmMap.current[id]) {
-      clearTimeout(alarmMap.current[id]);
-      delete alarmMap.current[id];
-    }
+    clearTimeout(alarmMap.current[id]);
+    delete alarmMap.current[id];
 
     setTodos((p) => p.filter((t) => t._id !== id));
     handleSuccess("Todo deleted");
@@ -250,7 +229,7 @@ function Home() {
     navigate("/login");
   };
 
-  /* ================== UI ================== */
+  /* ================= UI ================= */
 
   return (
     <div className="background">
@@ -278,10 +257,7 @@ function Home() {
               type="datetime-local"
               className="todo-input"
               value={expiryAt}
-              onChange={(e) => {
-                setExpiryAt(e.target.value);
-                setAutoExpiry(false);
-              }}
+              onChange={(e) => setExpiryAt(e.target.value)}
             />
 
             <select
@@ -344,7 +320,7 @@ function Home() {
                       </span>
 
                       <span className="todo-timer">
-                        ⏳ {remaining ? formatRemainingTime(remaining) : "No alarm"}
+                        ⏳ {formatRemainingTime(remaining)}
                       </span>
 
                       <button onClick={() => startEdit(todo)}>✏️</button>
